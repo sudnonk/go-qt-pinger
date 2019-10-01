@@ -8,37 +8,52 @@ import (
 	"math"
 )
 
+//PingのRTTを示すチャート
 type PingTimeChart struct {
 	core.QObject
 
 	_ func() `constructor:"init"`
 
-	chart     *charts.QChart
-	series    *charts.QLineSeries
-	pinger    *Pinger
-	bridge    *PingTimeChartBridge
+	//Qt側のチャート本体
+	chart *charts.QChart
+	//Qt側のチャートにのせる折れ線グラフ
+	series *charts.QLineSeries
+	//Pingを打つ型
+	pinger *Pinger
+	//QtとGo言語のやり取りをする型
+	bridge *PingTimeChartBridge
+	//Pingを打っている間はtrue
 	isPinging bool
 
-	lossCount  int
+	//パケットロスした個数
+	lossCount int
+	//送信した全個数
 	totalCount int
-	avg        float32
 }
 
+//QtとGo言語の間でデータをやり取りする型
 type PingTimeChartBridge struct {
 	core.QObject
 
+	//新な点が追加された時にそれを送信する
 	_ func(x int, y float64) `signal:"addPoint"`
-	_ func(data string)      `signal:"updateLossRate"`
-	_ func(ipaddr string)    `slot:"startPing"`
-	_ func()                 `slot:"stopPing"`
+	//パケットロス率が変わった時にそれを送信する
+	_ func(data string) `signal:"updateLossRate"`
+	//Pingを打ち始める時にそれを受信する
+	_ func(ipaddr string) `slot:"startPing"`
+	//Pingを止めるときにそれを受信する
+	_ func() `slot:"stopPing"`
 }
 
+//初期化します
 func (p *PingTimeChart) init() error {
 	p.bridge = NewPingTimeChartBridge(nil)
+
 	p.bridge.ConnectStartPing(func(ipaddr string) {
 		log.Println("slot:startPing called")
 		go p.startPing(ipaddr)
 	})
+
 	p.bridge.ConnectStopPing(func() {
 		log.Println("slot:stopPing called")
 		p.stopPing()
@@ -49,6 +64,7 @@ func (p *PingTimeChart) init() error {
 	return nil
 }
 
+//Pingを打っていなかったら始める、いたら何もしない
 func (p *PingTimeChart) startPing(ipaddr string) {
 	if !p.isPinging {
 		log.Println("startPing")
@@ -78,6 +94,7 @@ func (p *PingTimeChart) startPing(ipaddr string) {
 	}
 }
 
+//Pingを打っていたら止める、いなかったら何もしない
 func (p *PingTimeChart) stopPing() {
 	if p.isPinging {
 		log.Println("stopPing")
@@ -89,14 +106,15 @@ func (p *PingTimeChart) stopPing() {
 	}
 }
 
+//パケットロス率を計算して返す
 func (p *PingTimeChart) lossRate() float64 {
 	return math.Round((float64(p.lossCount) / float64(p.totalCount)) * 100)
 }
 
+//この構造体を初期値に戻す
 func (p *PingTimeChart) reset() {
 	p.pinger = nil
 	p.lossCount = 0
 	p.totalCount = 0
-	p.avg = 0
 	p.isPinging = false
 }

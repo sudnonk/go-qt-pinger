@@ -29,24 +29,6 @@ Rectangle{
             renderType: Text.QtRendering
         }
 
-        /*ChartView {
-            id: pingChart
-            x: 143
-            y: 274
-            width: 400
-            height: 200
-            antialiasing: true
-            title: qsTr("pingの応答時間")
-
-            LineSeries {
-                id: pingLine
-                Connections {
-                    target: PingChartBridge
-                    onAddPoint: pingLine.append(x,y)
-                }
-            }
-        }*/
-
         Text {
             id: lossRate
             x: 125

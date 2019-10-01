@@ -7,12 +7,17 @@ import (
 	"time"
 )
 
+//Pingの応答を格納する型
 type response struct {
-	addr    *net.IPAddr
-	rtt     time.Duration
+	//帰って来たIPアドレス
+	addr *net.IPAddr
+	//RTT
+	rtt time.Duration
+	//成功ならtrue
 	success bool
 }
 
+//Pingを打つ型
 type Pinger struct {
 	pinger *fastping.Pinger
 
@@ -21,6 +26,7 @@ type Pinger struct {
 	res       *response
 }
 
+//IPアドレスを受け取ってそれで初期化します
 func (p *Pinger) init(ipaddr string) (*Pinger, error) {
 	p.pinger = fastping.NewPinger()
 
@@ -37,7 +43,7 @@ func (p *Pinger) init(ipaddr string) (*Pinger, error) {
 		p.res = &response{addr: addr, rtt: rtt, success: true}
 	}
 	p.pinger.OnIdle = func() {
-		if p.res == nil {
+		if p.res == nil { //p.resがnilなのにIdleになったらパケットロス
 			p.resChan <- &response{addr: nil, rtt: 0, success: false}
 		} else {
 			p.resChan <- p.res
@@ -53,19 +59,20 @@ func (p *Pinger) init(ipaddr string) (*Pinger, error) {
 	return p, nil
 }
 
+//Pingが始まっていなかったら開始します
 func (p *Pinger) run() {
 	if !p.isPinging {
 		log.Println("pinger run")
 
-		p.pinger.RunLoop()
 		p.isPinging = true
+		p.pinger.RunLoop()
 
 	loop:
 		for {
 			select {
 			case <-p.pinger.Done():
 				log.Println("pinger done")
-				if err := p.pinger.Err(); err != nil {
+				if err := p.pinger.Err(); err != nil { //pinger.Stop()以外でDone()になったらエラー
 					log.Fatal(err)
 				}
 				break loop
@@ -80,6 +87,7 @@ func (p *Pinger) run() {
 	}
 }
 
+//Pingが始まっていたら止めます
 func (p *Pinger) stop() {
 	if p.isPinging {
 		log.Println("pinger stop")
@@ -91,6 +99,7 @@ func (p *Pinger) stop() {
 	}
 }
 
+//新しいPinger構造体を返す
 func NewPinger(ipaddr string) (*Pinger, error) {
 	p := new(Pinger)
 	return p.init(ipaddr)
