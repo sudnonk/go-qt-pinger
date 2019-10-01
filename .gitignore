@@ -1,0 +1,6 @@
+deploy/*
+linux/*
+moc*
+rcc*
+windows/*
+.idea/*
